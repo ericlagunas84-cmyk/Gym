@@ -1,0 +1,48 @@
+{% extends "_base.html" %}
+{% block title %}Biblioteca{% endblock %}
+{% block content %}
+<section class="{{ CARD }} space-y-3">
+  <h2 class="font-bold">Ejercicios <span class="text-slate-500 font-normal">({{ exercises|length }})</span></h2>
+  <form method="post" action="/admin/exercises" enctype="multipart/form-data" class="grid gap-3">
+    <input name="name" required maxlength="120" placeholder="Nombre del ejercicio" class="{{ FIELD }}">
+    <input name="video_url" type="url" placeholder="Enlace directo al video (.mp4 / .webm)" class="{{ FIELD }}">
+    <label class="text-sm text-slate-400">…o sube el video (mp4/webm, máx. 60 MB)
+      <input name="video_file" type="file" accept="video/mp4,video/webm,video/quicktime"
+             class="mt-1 block w-full text-sm file:mr-3 file:h-10 file:px-4 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-100">
+    </label>
+    <button class="{{ BTN }}">Guardar en la biblioteca</button>
+  </form>
+  <ul class="divide-y divide-slate-700">
+    {% for e in exercises %}
+    <li class="py-2.5 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="font-medium truncate">{{ e.name }}</p>
+        <p class="text-sm text-slate-400">{% if e.video_url %}<a href="{{ e.video_url }}" target="_blank" class="underline">🎬 Ver video</a>{% else %}sin video{% endif %}</p>
+      </div>
+      <form method="post" action="/admin/exercises/{{ e.id }}/delete" onsubmit="return confirmTap(this)">
+        <button class="text-sm text-red-400 px-2 py-1">Quitar</button>
+      </form>
+    </li>
+    {% else %}
+    <li class="py-4 text-sm text-slate-400">Tu biblioteca está vacía. Se llena sola conforme asignas ejercicios, o agrégalos aquí.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="{{ CARD }} space-y-3">
+  <h2 class="font-bold">Plantillas de rutina <span class="text-slate-500 font-normal">({{ templates_list|length }})</span></h2>
+  {% for t in templates_list %}
+  <details class="rounded-xl bg-slate-900 px-4 py-3">
+    <summary class="cursor-pointer font-medium">{{ t.name }} <span class="text-slate-500 font-normal">· {{ t.items|length }} ejercicios</span></summary>
+    <ul class="mt-2 text-sm text-slate-300 space-y-1">
+      {% for it in t.items %}<li><span class="text-emerald-400">{{ DAY_LABELS[it.day] }}</span> · {{ it.exercise_name }} · {{ it.sets }} × {{ it.reps }}</li>{% endfor %}
+    </ul>
+    <form method="post" action="/admin/templates/{{ t.id }}/delete" onsubmit="return confirmTap(this)" class="mt-2">
+      <button class="text-sm text-red-400">Eliminar plantilla</button>
+    </form>
+  </details>
+  {% else %}
+  <p class="text-sm text-slate-400">Aún no hay plantillas. En la pestaña Rutina de un cliente usa «Guardar esta rutina» para crear una.</p>
+  {% endfor %}
+</section>
+{% endblock %}

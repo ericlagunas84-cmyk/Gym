@@ -1,45 +1,8 @@
-<!DOCTYPE html>
-<html lang="es" class="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f172a">
-  <meta name="robots" content="noindex">
-  <title>Panel del entrenador · FitStudio Express</title>
-  <link rel="stylesheet" href="/static/css/app.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="/static/js/alpine.min.js"></script>
-</head>
-{% set field = "w-full h-12 rounded-xl bg-slate-900 border border-slate-700 px-3 focus:border-emerald-500 focus:outline-none" %}
-{% set btn = "h-12 px-5 rounded-xl bg-emerald-500 text-slate-900 font-bold" %}
-<body class="bg-slate-900 text-slate-100 antialiased min-h-screen">
-<div class="max-w-3xl mx-auto px-4 py-6 space-y-6" x-data="{ tab: 'rutina', copied: false }">
-  <header class="flex items-center gap-3">
-    <img src="/static/icons/icon-192.png" alt="" class="w-11 h-11 rounded-xl">
-    <div>
-      <h1 class="text-xl font-bold leading-tight">FitStudio Express</h1>
-      <p class="text-sm text-slate-400">Panel del entrenador</p>
-    </div>
-  </header>
-
-  {% if default_password %}
-  <p class="rounded-xl bg-amber-500/10 text-amber-300 text-sm px-4 py-3">
-    Estás usando la contraseña por defecto. Define la variable de entorno <code>ADMIN_PASSWORD</code> antes de publicar.
-  </p>
-  {% endif %}
-
-  <!-- Ajustes -->
-  <details class="rounded-2xl bg-slate-800 ring-1 ring-slate-700" {{ 'open' if not trainer_phone }}>
-    <summary class="px-4 py-3 font-semibold cursor-pointer">Mis datos (WhatsApp para recibir reportes)</summary>
-    <form method="post" action="/admin/settings" class="p-4 pt-0 grid sm:grid-cols-[1fr_1fr_auto] gap-3">
-      <input name="trainer_name" value="{{ trainer_name }}" placeholder="Tu nombre" class="{{ field }}">
-      <input name="trainer_phone" value="{{ trainer_phone }}" placeholder="WhatsApp, ej. 5216561234567" inputmode="tel" class="{{ field }}">
-      <button class="{{ btn }}">Guardar</button>
-    </form>
-  </details>
-
-  <!-- Clientes -->
-  <section class="rounded-2xl bg-slate-800 ring-1 ring-slate-700 p-4">
+{% extends "_base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block content %}
+<div class="space-y-5" x-data="{ tab: '{{ tab }}', copied: false }">
+  <section class="{{ CARD }}">
     <h2 class="font-bold mb-3">Clientes <span class="text-slate-500 font-normal">({{ clients|length }})</span></h2>
     <div class="flex flex-wrap gap-2 mb-4">
       {% for c in clients %}
@@ -50,70 +13,107 @@
       {% endfor %}
     </div>
     <form method="post" action="/admin/clients" class="grid sm:grid-cols-[1fr_1fr_auto] gap-3">
-      <input name="name" required maxlength="120" placeholder="Nombre completo" class="{{ field }}">
-      <input name="phone" required placeholder="WhatsApp con código de país" inputmode="tel" class="{{ field }}">
-      <button class="{{ btn }}">+ Agregar</button>
+      <input name="name" required maxlength="120" placeholder="Nombre completo" class="{{ FIELD }}">
+      <input name="phone" required placeholder="WhatsApp con código de país" inputmode="tel" class="{{ FIELD }}">
+      <button class="{{ BTN }}">+ Agregar</button>
     </form>
   </section>
 
+  {% if not trainer.phone %}
+  <p class="rounded-xl bg-slate-800 text-slate-300 text-sm px-4 py-3">Agrega tu WhatsApp en <a href="/admin/ajustes" class="underline font-semibold">Ajustes</a> para recibir los reportes de tus clientes.</p>
+  {% endif %}
+
   {% if selected %}
   {% set link = base_url ~ "/app?client_id=" ~ selected.token %}
-  <section class="rounded-2xl bg-slate-800 ring-1 ring-slate-700 p-4 space-y-3">
+  <section class="{{ CARD }} space-y-3">
     <div class="flex items-start justify-between gap-3">
       <div>
         <h2 class="text-lg font-bold">{{ selected.name }}</h2>
         <p class="text-sm text-slate-400">+{{ selected.phone }}</p>
       </div>
-      <form method="post" action="/admin/clients/{{ selected.id }}/delete"
-            onsubmit="return this.dataset.ok || (this.querySelector('button').textContent = '¿Seguro? Toca otra vez', this.dataset.ok = 1, false)">
+      <form method="post" action="/admin/clients/{{ selected.id }}/delete" onsubmit="return confirmTap(this)">
         <button class="text-sm text-red-400 px-2 py-1">Eliminar</button>
       </form>
     </div>
     <div class="flex gap-2">
-      <input readonly value="{{ link }}" class="{{ field }} text-sm text-slate-300" onclick="this.select()">
+      <input readonly value="{{ link }}" aria-label="Enlace personal del cliente" class="{{ FIELD }} text-sm text-slate-300" onclick="this.select()">
       <button type="button" class="h-12 px-4 rounded-xl bg-slate-700 font-semibold shrink-0"
               @click="navigator.clipboard.writeText('{{ link }}'); copied = true; setTimeout(() => copied = false, 1500)"
               x-text="copied ? '✓' : 'Copiar'"></button>
     </div>
     <a href="https://wa.me/{{ selected.phone }}?text={{ ('Hola ' ~ selected.name.split(' ')[0] ~ ', aquí está tu rutina y registro de comidas: ' ~ link) | urlencode }}"
        target="_blank" rel="noopener" class="flex items-center justify-center h-12 rounded-xl bg-green-600 font-bold">Enviar enlace por WhatsApp</a>
+    <form method="post" action="/admin/clients/{{ selected.id }}/goals" class="grid grid-cols-[1fr_1fr_auto] gap-3 items-end pt-1">
+      <label class="text-sm text-slate-400">Meta diaria (kcal)
+        <input name="kcal_goal" type="number" inputmode="numeric" min="0" max="10000" value="{{ selected.kcal_goal or '' }}" placeholder="—" class="{{ FIELD }} mt-1 text-slate-100">
+      </label>
+      <label class="text-sm text-slate-400">Proteína (g)
+        <input name="protein_goal" type="number" inputmode="numeric" min="0" max="500" value="{{ selected.protein_goal or '' }}" placeholder="—" class="{{ FIELD }} mt-1 text-slate-100">
+      </label>
+      <button class="h-12 px-4 rounded-xl bg-slate-700 font-semibold">Guardar</button>
+    </form>
   </section>
 
-  <nav class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-800">
-    {% for key, label in [('rutina', 'Rutina'), ('comidas', 'Comidas (' ~ meals|length ~ ')'), ('avances', 'Avances')] %}
+  <nav class="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-800">
+    {% for key, label in [('rutina', 'Rutina'), ('comidas', 'Comidas'), ('avances', 'Avances'), ('cuerpo', 'Cuerpo')] %}
     <button @click="tab = '{{ key }}'" class="py-2.5 rounded-lg text-sm font-semibold"
             :class="tab === '{{ key }}' ? 'bg-emerald-500 text-slate-900' : 'text-slate-400'">{{ label }}</button>
     {% endfor %}
   </nav>
 
-  <!-- Rutina -->
+  <!-- ============ Rutina ============ -->
   <section x-show="tab === 'rutina'" class="space-y-4">
-    <form method="post" action="/admin/workouts" enctype="multipart/form-data"
-          class="rounded-2xl bg-slate-800 ring-1 ring-slate-700 p-4 grid grid-cols-2 gap-3">
+    <form method="post" action="/admin/workouts" enctype="multipart/form-data" class="{{ CARD }} grid grid-cols-2 gap-3">
       <h3 class="col-span-2 font-bold">Asignar ejercicio</h3>
       <input type="hidden" name="client_id" value="{{ selected.id }}">
-      <select name="day" class="{{ field }} col-span-2 sm:col-span-1">
-        {% for key, label in days.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      <select name="day" aria-label="Día" class="{{ FIELD }} col-span-2 sm:col-span-1">
+        {% for key, label in DAY_LABELS.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
       </select>
-      <input name="exercise_name" required maxlength="120" placeholder="Ejercicio (ej. Goblet Squat)" class="{{ field }} col-span-2 sm:col-span-1">
-      <label class="text-sm text-slate-400">Series
-        <input name="sets" type="number" min="1" max="20" value="3" class="{{ field }} mt-1 text-slate-100">
-      </label>
-      <label class="text-sm text-slate-400">Repeticiones
-        <input name="reps" type="number" min="1" max="200" value="10" class="{{ field }} mt-1 text-slate-100">
-      </label>
-      <input name="video_url" type="url" placeholder="Enlace directo al video (.mp4 / .webm)" class="{{ field }} col-span-2">
+      <input name="exercise_name" required maxlength="120" list="biblioteca" autocomplete="off" placeholder="Ejercicio (ej. Goblet Squat)" class="{{ FIELD }} col-span-2 sm:col-span-1">
+      <datalist id="biblioteca">{% for e in exercises %}<option value="{{ e.name }}">{% endfor %}</datalist>
+      <div class="col-span-2 grid grid-cols-3 gap-3">
+        <label class="text-sm text-slate-400">Series<input name="sets" type="number" min="1" max="20" value="3" class="{{ FIELD }} mt-1 text-slate-100"></label>
+        <label class="text-sm text-slate-400">Reps<input name="reps" type="number" min="1" max="200" value="10" class="{{ FIELD }} mt-1 text-slate-100"></label>
+        <label class="text-sm text-slate-400">Descanso (s)<input name="rest_seconds" type="number" min="0" max="600" step="5" value="60" class="{{ FIELD }} mt-1 text-slate-100"></label>
+      </div>
+      <input name="note" maxlength="200" placeholder="Indicación para el cliente (opcional)" class="{{ FIELD }} col-span-2">
+      <input name="video_url" type="url" placeholder="Enlace al video (.mp4 / .webm) — vacío si ya está en tu biblioteca" class="{{ FIELD }} col-span-2">
       <label class="col-span-2 text-sm text-slate-400">…o sube el video (mp4/webm, máx. 60 MB)
         <input name="video_file" type="file" accept="video/mp4,video/webm,video/quicktime"
                class="mt-1 block w-full text-sm file:mr-3 file:h-10 file:px-4 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-100">
       </label>
-      <button class="{{ btn }} col-span-2">Agregar a la rutina</button>
+      <button class="{{ BTN }} col-span-2">Agregar a la rutina</button>
+      <p class="col-span-2 text-xs text-slate-500">Cada ejercicio nuevo se guarda en tu biblioteca: la próxima vez basta escribir su nombre y el video se asigna solo.</p>
     </form>
 
+    <div class="{{ CARD }} space-y-3">
+      <h3 class="font-bold">Plantillas</h3>
+      {% if templates_list %}
+      <form method="post" action="/admin/clients/{{ selected.id }}/apply-template" class="grid sm:grid-cols-[1fr_auto_auto] gap-3">
+        <select name="template_id" aria-label="Plantilla" class="{{ FIELD }}">
+          {% for t in templates_list %}<option value="{{ t.id }}">{{ t.name }} ({{ t.items|length }} ejercicios)</option>{% endfor %}
+        </select>
+        <select name="mode" aria-label="Modo" class="{{ FIELD }}">
+          <option value="replace">Reemplazar rutina</option>
+          <option value="append">Agregar a la rutina</option>
+        </select>
+        <button class="h-12 px-4 rounded-xl bg-slate-700 font-semibold">Aplicar</button>
+      </form>
+      {% else %}
+      <p class="text-sm text-slate-400">Aún no tienes plantillas. Arma la rutina de un cliente y guárdala aquí para reutilizarla con otros.</p>
+      {% endif %}
+      {% if routine %}
+      <form method="post" action="/admin/clients/{{ selected.id }}/save-template" class="grid sm:grid-cols-[1fr_auto] gap-3">
+        <input name="name" required maxlength="120" placeholder="Nombre (ej. Fuerza 3 días)" class="{{ FIELD }}">
+        <button class="h-12 px-4 rounded-xl bg-slate-700 font-semibold">Guardar esta rutina</button>
+      </form>
+      {% endif %}
+    </div>
+
     {% for day, items in routine.items() %}
-    <div class="rounded-2xl bg-slate-800 ring-1 ring-slate-700 p-4">
+    <div class="{{ CARD }}">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="font-bold text-emerald-400">{{ days[day] }}</h3>
+        <h3 class="font-bold text-emerald-400">{{ DAY_LABELS[day] }}</h3>
         <a href="/app?client_id={{ selected.token }}&day={{ day }}" target="_blank" class="text-sm text-slate-400 underline">Ver como cliente</a>
       </div>
       <ul class="divide-y divide-slate-700">
@@ -121,7 +121,8 @@
         <li class="py-2.5 flex items-center justify-between gap-3">
           <div class="min-w-0">
             <p class="font-medium truncate">{{ w.exercise_name }}</p>
-            <p class="text-sm text-slate-400">{{ w.sets }} × {{ w.reps }} · {{ '🎬 con video' if w.video_url else 'sin video' }}</p>
+            <p class="text-sm text-slate-400">{{ w.sets }} × {{ w.reps }} · descanso {{ w.rest_seconds or 0 }} s · {{ '🎬 con video' if w.video_url else 'sin video' }}</p>
+            {% if w.note %}<p class="text-sm text-slate-300">💡 {{ w.note }}</p>{% endif %}
           </div>
           <form method="post" action="/admin/workouts/{{ w.id }}/delete">
             <button class="text-sm text-red-400 px-2 py-1" aria-label="Quitar {{ w.exercise_name }}">Quitar</button>
@@ -131,48 +132,82 @@
       </ul>
     </div>
     {% else %}
-    <p class="text-center text-slate-400 py-6">Este cliente aún no tiene ejercicios asignados.</p>
+    <p class="text-center text-slate-400 py-4">Este cliente aún no tiene ejercicios asignados.</p>
     {% endfor %}
   </section>
 
-  <!-- Comidas -->
-  <section x-show="tab === 'comidas'" x-cloak>
+  <!-- ============ Comidas ============ -->
+  <section x-show="tab === 'comidas'" x-cloak class="space-y-3">
     {% if not ai_enabled %}
-    <p class="rounded-xl bg-slate-800 text-slate-400 text-sm px-4 py-3 mb-3">
-      El contador de calorías está apagado: define la variable de entorno <code>ANTHROPIC_API_KEY</code> para activarlo.
-    </p>
+    <p class="rounded-xl bg-slate-800 text-slate-400 text-sm px-4 py-3">El contador de calorías está apagado: falta la variable de entorno <code>ANTHROPIC_API_KEY</code>.</p>
     {% endif %}
-    {% if kcal_days %}
-    <div class="flex gap-2 overflow-x-auto pb-1 mb-3">
-      {% for d, kcal in kcal_days.items() %}
+    {% if meal_days %}
+    <div class="flex gap-2 overflow-x-auto pb-1">
+      {% for d, v in meal_days.items() %}
       <div class="shrink-0 rounded-xl bg-slate-800 ring-1 ring-slate-700 px-4 py-2 text-center">
         <p class="text-xs text-slate-400">{{ d }}</p>
-        <p class="font-bold text-emerald-400 tabular-nums">≈ {{ kcal }} <span class="text-xs font-normal text-slate-400">kcal</span></p>
+        <p class="font-bold tabular-nums {{ 'text-amber-400' if selected.kcal_goal and v.kcal > selected.kcal_goal * 1.1 else 'text-emerald-400' }}">≈ {{ v.kcal | num }} <span class="text-xs font-normal text-slate-400">kcal</span></p>
+        <p class="text-xs text-slate-400">{% if selected.kcal_goal %}meta {{ selected.kcal_goal | num }} · {% endif %}P {{ v.protein }} g</p>
       </div>
       {% endfor %}
     </div>
     {% endif %}
-    {% if meals %}
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {% for m in meals %}
-      <figure class="rounded-xl overflow-hidden bg-slate-800 ring-1 ring-slate-700">
-        <a href="/{{ m.photo_path }}" target="_blank"><img src="/{{ m.photo_path }}" alt="{{ m.meal_type }}" loading="lazy" class="w-full aspect-square object-cover"></a>
-        <figcaption class="px-3 py-2 text-sm flex items-center justify-between gap-2">
-          <span><span class="font-medium">{{ m.meal_type }}</span><br><span class="text-slate-500">{{ m.created_at.strftime('%d/%m %H:%M') }}</span>
-            {% if m.calories is not none %}<br><span class="text-emerald-400 font-semibold" title="{{ m.description }} · P {{ m.protein_g }} g · C {{ m.carbs_g }} g · G {{ m.fat_g }} g">≈ {{ m.calories }} kcal</span>
-            <br><span class="text-xs text-slate-400">{{ m.description }}<br>P {{ m.protein_g }} · C {{ m.carbs_g }} · G {{ m.fat_g }} g</span>{% endif %}</span>
-          <form method="post" action="/admin/meals/{{ m.id }}/delete"><button class="text-red-400" aria-label="Borrar foto">✕</button></form>
-        </figcaption>
-      </figure>
-      {% endfor %}
-    </div>
+    {% for m in meals %}
+    <article class="rounded-xl overflow-hidden bg-slate-800 ring-1 ring-slate-700 flex">
+      <a href="{{ m.photo_path }}" target="_blank" class="shrink-0"><img src="{{ m.photo_path }}" alt="{{ m.meal_type }}" loading="lazy" class="w-28 h-full min-h-28 object-cover"></a>
+      <div class="p-3 text-sm min-w-0 flex-1">
+        <div class="flex justify-between gap-2">
+          <p><span class="font-medium">{{ m.meal_type }}</span> <span class="text-slate-500">{{ m.created_at.strftime('%d/%m %H:%M') }}</span></p>
+          <form method="post" action="/admin/meals/{{ m.id }}/delete" onsubmit="return confirmTap(this)"><button class="text-red-400" aria-label="Borrar foto">✕</button></form>
+        </div>
+        {% if m.calories is not none %}
+        <p class="text-emerald-400 font-semibold">≈ {{ m.calories | num }} kcal{% if m.edited %} <span class="text-slate-400 font-normal">· corregido por el cliente</span>{% endif %}</p>
+        <p class="text-slate-400">{{ m.description }} · P {{ m.protein_g }} · C {{ m.carbs_g }} · G {{ m.fat_g }} g</p>
+        {% endif %}
+        <form method="post" action="/admin/meals/{{ m.id }}/comment" class="flex gap-2 mt-2">
+          <input name="comment" maxlength="300" value="{{ m.trainer_comment or '' }}" placeholder="Comentario para el cliente" aria-label="Comentario para el cliente"
+                 class="flex-1 min-w-0 h-10 rounded-lg bg-slate-900 border border-slate-700 px-3 focus:border-emerald-500 focus:outline-none">
+          <button class="h-10 px-3 rounded-lg bg-slate-700 font-semibold">Enviar</button>
+        </form>
+      </div>
+    </article>
     {% else %}
     <p class="text-center text-slate-400 py-6">Todavía no hay fotos de comidas.</p>
-    {% endif %}
+    {% endfor %}
   </section>
 
-  <!-- Avances -->
-  <section x-show="tab === 'avances'" x-cloak>
+  <!-- ============ Avances ============ -->
+  <section x-show="tab === 'avances'" x-cloak class="space-y-4">
+    <div class="{{ CARD }} space-y-3">
+      <h3 class="font-bold">Mensaje para {{ selected.name.split(' ')[0] }}</h3>
+      <form method="post" action="/admin/clients/{{ selected.id }}/message" class="space-y-3">
+        <textarea name="text" required maxlength="500" rows="2" placeholder="Ej. Excelente semana. El jueves subimos 2.5 kg en sentadilla."
+                  class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 focus:border-emerald-500 focus:outline-none"></textarea>
+        <button class="{{ BTN }} w-full">Publicar mensaje</button>
+      </form>
+      <p class="text-xs text-slate-500">El cliente ve el mensaje más reciente arriba de su rutina.</p>
+      {% for msg_item in messages %}
+      <div class="flex items-start justify-between gap-3 text-sm border-t border-slate-700 pt-2">
+        <p><span class="text-slate-500">{{ msg_item.created_at.strftime('%d/%m') }}</span> {{ msg_item.text }}</p>
+        <form method="post" action="/admin/messages/{{ msg_item.id }}/delete"><button class="text-red-400" aria-label="Borrar mensaje">✕</button></form>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if progress %}
+    <div class="{{ CARD }}">
+      <h3 class="font-bold mb-2">Progreso de peso por ejercicio</h3>
+      <ul class="divide-y divide-slate-700 text-sm">
+        {% for p in progress %}
+        <li class="py-2 flex items-center justify-between gap-3">
+          <span class="truncate">{{ p.name }} <span class="text-slate-500">· {{ p.sessions }} sesión(es)</span></span>
+          <span class="shrink-0 tabular-nums">{% if p.sessions > 1 %}<span class="text-slate-400">{{ p.first | g }} → </span>{% endif %}<span class="font-bold text-emerald-400">{{ p.last | g }} kg</span></span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
     {% if logs %}
     <div class="rounded-2xl bg-slate-800 ring-1 ring-slate-700 overflow-hidden">
       <table class="w-full text-sm">
@@ -185,17 +220,53 @@
             <td class="px-3 py-2 text-slate-400 whitespace-nowrap">{{ l.created_at.strftime('%d/%m %H:%M') }}</td>
             <td class="px-3 py-2">{{ l.workout.exercise_name }}</td>
             <td class="px-3 py-2">{{ l.set_number }}/{{ l.workout.sets }}</td>
-            <td class="px-3 py-2 text-right tabular-nums">{{ '%g' % l.weight }} kg</td>
+            <td class="px-3 py-2 text-right tabular-nums">{{ l.weight | g }} kg</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-    <p class="text-center text-slate-400 py-6">Aún no hay series registradas.</p>
+    <p class="text-center text-slate-400 py-4">Aún no hay series registradas.</p>
+    {% endif %}
+  </section>
+
+  <!-- ============ Cuerpo ============ -->
+  <section x-show="tab === 'cuerpo'" x-cloak class="space-y-4">
+    {% set photos = body | selectattr('photo') | list %}
+    {% if photos | length > 1 %}
+    <div class="{{ CARD }}">
+      <h3 class="font-bold mb-3">Antes y después</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <figure><img src="{{ photos[-1].photo }}" alt="Antes" class="w-full aspect-[3/4] object-cover rounded-xl"><figcaption class="text-sm text-slate-400 mt-1">{{ photos[-1].date }}</figcaption></figure>
+        <figure><img src="{{ photos[0].photo }}" alt="Después" class="w-full aspect-[3/4] object-cover rounded-xl"><figcaption class="text-sm text-slate-400 mt-1">{{ photos[0].date }}</figcaption></figure>
+      </div>
+    </div>
+    {% endif %}
+    {% if body %}
+    <div class="rounded-2xl bg-slate-800 ring-1 ring-slate-700 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-left text-slate-400 bg-slate-900/50">
+          <tr><th class="px-3 py-2 font-medium">Fecha</th><th class="px-3 py-2 font-medium">Peso</th><th class="px-3 py-2 font-medium">Cintura</th><th class="px-3 py-2 font-medium">Cadera</th><th class="px-3 py-2 font-medium">Pecho</th><th class="px-3 py-2 font-medium">Foto</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-700 tabular-nums">
+          {% for b in body %}
+          <tr>
+            <td class="px-3 py-2 text-slate-400 whitespace-nowrap">{{ b.date }}</td>
+            <td class="px-3 py-2">{{ (b.weight | g ~ ' kg') if b.weight else '—' }}</td>
+            <td class="px-3 py-2">{{ b.waist | g if b.waist else '—' }}</td>
+            <td class="px-3 py-2">{{ b.hip | g if b.hip else '—' }}</td>
+            <td class="px-3 py-2">{{ b.chest | g if b.chest else '—' }}</td>
+            <td class="px-3 py-2">{% if b.photo %}<a href="{{ b.photo }}" target="_blank"><img src="{{ b.photo }}" alt="Foto de progreso" class="w-10 h-10 rounded-lg object-cover"></a>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-center text-slate-400 py-6">El cliente aún no registra peso, medidas ni fotos de progreso.</p>
     {% endif %}
   </section>
   {% endif %}
 </div>
-</body>
-</html>
+{% endblock %}

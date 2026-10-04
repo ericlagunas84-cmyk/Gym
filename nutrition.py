@@ -6,12 +6,11 @@ solo que las fotos se guardan sin estimación.
 import base64
 import logging
 import os
-from pathlib import Path
 
 log = logging.getLogger("fitstudio.nutrition")
 
 MODEL = os.getenv("NUTRITION_MODEL", "claude-haiku-4-5-20251001")
-SUPPORTED = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
+SUPPORTED = {"image/jpeg", "image/png", "image/webp"}
 
 TOOL = {
     "name": "registrar_estimacion",
@@ -42,11 +41,16 @@ def enabled() -> bool:
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
 
-def estimate(photo: Path, meal_type: str) -> dict | None:
-    """Devuelve {description, calories, protein_g, carbs_g, fat_g} o None si no se pudo estimar."""
-    media_type = SUPPORTED.get(photo.suffix.lower())
-    if not enabled() or not media_type:
+def estimate(data: bytes | None, media_type: str, meal_type: str, note: str | None = None) -> dict | None:
+    """Devuelve {description, calories, protein_g, carbs_g, fat_g} o None si no se pudo estimar.
+
+    `note` es la aclaración del cliente al corregir ("eran 2 tortillas, no 4").
+    """
+    if not enabled() or not data or media_type not in SUPPORTED:
         return None
+    prompt = PROMPT.format(meal_type=meal_type)
+    if note:
+        prompt += f" El cliente aclara lo siguiente sobre su plato; tómalo como correcto: «{note}»."
     try:
         import anthropic
 
@@ -58,20 +62,20 @@ def estimate(photo: Path, meal_type: str) -> dict | None:
             tool_choice={"type": "tool", "name": TOOL["name"]},
             messages=[{"role": "user", "content": [
                 {"type": "image", "source": {"type": "base64", "media_type": media_type,
-                                             "data": base64.standard_b64encode(photo.read_bytes()).decode()}},
-                {"type": "text", "text": PROMPT.format(meal_type=meal_type)},
+                                             "data": base64.standard_b64encode(data).decode()}},
+                {"type": "text", "text": prompt},
             ]}],
         )
-        data = next(b.input for b in msg.content if b.type == "tool_use")
-        if not data.get("es_comida"):
+        out = next(b.input for b in msg.content if b.type == "tool_use")
+        if not out.get("es_comida"):
             return None
         clamp = lambda v, hi: max(0, min(int(v or 0), hi))
         return {
-            "description": str(data.get("descripcion", ""))[:120],
-            "calories": clamp(data.get("calorias"), 5000),
-            "protein_g": clamp(data.get("proteina_g"), 500),
-            "carbs_g": clamp(data.get("carbohidratos_g"), 800),
-            "fat_g": clamp(data.get("grasa_g"), 500),
+            "description": str(out.get("descripcion", ""))[:200],
+            "calories": clamp(out.get("calorias"), 5000),
+            "protein_g": clamp(out.get("proteina_g"), 500),
+            "carbs_g": clamp(out.get("carbohidratos_g"), 800),
+            "fat_g": clamp(out.get("grasa_g"), 500),
         }
     except Exception:  # la foto ya quedó guardada; la estimación es opcional
         log.exception("No se pudo estimar las calorías")

@@ -1,0 +1,48 @@
+{% extends "_base.html" %}
+{% block title %}Ajustes{% endblock %}
+{% block content %}
+<form method="post" action="/admin/ajustes" enctype="multipart/form-data" class="{{ CARD }} grid gap-3" x-data="{ color: '{{ trainer.brand_color or '#10b981' }}' }">
+  <h2 class="font-bold">Mis datos y marca</h2>
+  <label class="text-sm text-slate-400">Tu nombre
+    <input name="name" value="{{ trainer.name }}" maxlength="120" class="{{ FIELD }} mt-1 text-slate-100">
+  </label>
+  <label class="text-sm text-slate-400">WhatsApp para recibir reportes (con código de país)
+    <input name="phone" value="{{ trainer.phone }}" inputmode="tel" placeholder="5216561234567" class="{{ FIELD }} mt-1 text-slate-100">
+  </label>
+  <label class="text-sm text-slate-400">Nombre de tu marca (lo ven tus clientes)
+    <input name="brand_name" value="{{ trainer.brand_name }}" maxlength="60" placeholder="Ej. Coach Eric" class="{{ FIELD }} mt-1 text-slate-100">
+  </label>
+  <div class="flex items-end gap-3">
+    <label class="text-sm text-slate-400">Color de marca
+      <input name="brand_color" type="color" x-model="color" class="mt-1 block h-12 w-20 rounded-xl bg-slate-900 border border-slate-700 p-1">
+    </label>
+    <div class="flex-1 h-12 rounded-xl flex items-center justify-center font-bold text-slate-900" :style="`background:${color}`">Completar Serie 1</div>
+  </div>
+  <p class="text-xs text-slate-500">Elige un color claro o vivo: la app de tus clientes tiene fondo oscuro.</p>
+  <div class="flex items-center gap-3">
+    {% if trainer.logo_url %}<img src="{{ trainer.logo_url }}" alt="Logo actual" class="w-14 h-14 rounded-xl object-cover">{% endif %}
+    <label class="flex-1 text-sm text-slate-400">Logo (jpg, png o webp, máx. 2 MB)
+      <input name="logo" type="file" accept="image/jpeg,image/png,image/webp"
+             class="mt-1 block w-full text-sm file:mr-3 file:h-10 file:px-4 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-100">
+    </label>
+  </div>
+  {% if trainer.logo_url %}
+  <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="remove_logo" value="1" class="w-5 h-5"> Quitar logo</label>
+  {% endif %}
+  <button class="{{ BTN }}">Guardar ajustes</button>
+</form>
+
+<form method="post" action="/admin/ajustes/password" class="{{ CARD }} grid gap-3">
+  <h2 class="font-bold">Cambiar contraseña</h2>
+  <p class="text-sm text-slate-400">Usuario: <span class="text-slate-200">{{ trainer.username }}</span></p>
+  <input name="current" type="password" required autocomplete="current-password" placeholder="Contraseña actual" aria-label="Contraseña actual" class="{{ FIELD }}">
+  <input name="new" type="password" required minlength="8" autocomplete="new-password" placeholder="Nueva contraseña (mín. 8 caracteres)" aria-label="Nueva contraseña" class="{{ FIELD }}">
+  <button class="h-12 rounded-xl bg-slate-700 font-semibold">Actualizar contraseña</button>
+</form>
+
+<section class="{{ CARD }} text-sm space-y-1">
+  <h2 class="font-bold text-base mb-1">Estado del servidor</h2>
+  <p>Contador de calorías con IA: <span class="{{ 'text-emerald-400' if ai_enabled else 'text-amber-300' }} font-semibold">{{ 'activo' if ai_enabled else 'apagado (falta ANTHROPIC_API_KEY)' }}</span></p>
+  <p>Fotos y videos: <span class="text-slate-300 font-semibold">{{ 'Supabase Storage' if remote_storage else 'carpeta local del servidor' }}</span></p>
+</section>
+{% endblock %}

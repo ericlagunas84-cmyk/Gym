@@ -1,0 +1,39 @@
+{% extends "_base.html" %}
+{% block title %}Entrenadores{% endblock %}
+{% block content %}
+<section class="{{ CARD }} space-y-3">
+  <h2 class="font-bold">Nuevo entrenador</h2>
+  <form method="post" action="/admin/entrenadores" class="grid sm:grid-cols-3 gap-3">
+    <input name="username" required maxlength="80" autocapitalize="none" placeholder="Usuario o correo" class="{{ FIELD }}">
+    <input name="name" maxlength="120" placeholder="Nombre" class="{{ FIELD }}">
+    <input name="password" required minlength="8" placeholder="Contraseña inicial (mín. 8)" class="{{ FIELD }}">
+    <button class="{{ BTN }} sm:col-span-3">Crear cuenta</button>
+  </form>
+  <p class="text-xs text-slate-500">Cada entrenador entra en /login con su usuario y solo ve sus propios clientes, biblioteca y marca.</p>
+</section>
+
+<section class="space-y-3">
+  {% for t in rows %}
+  <div class="{{ CARD }} space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="font-bold truncate">{{ t.name or t.username }} {% if t.is_owner %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300">Administrador</span>{% endif %}</p>
+        <p class="text-sm text-slate-400">{{ t.username }} · {{ counts.get(t.id, 0) }} cliente(s) · {{ 'activo' if t.active else 'suspendido' }}</p>
+      </div>
+      {% if not t.is_owner %}
+      <form method="post" action="/admin/entrenadores/{{ t.id }}/toggle">
+        <button class="text-sm px-3 py-2 rounded-lg bg-slate-700 font-semibold">{{ 'Suspender' if t.active else 'Reactivar' }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if not t.is_owner %}
+    <form method="post" action="/admin/entrenadores/{{ t.id }}/password" class="flex gap-2">
+      <input name="password" required minlength="8" placeholder="Nueva contraseña" aria-label="Nueva contraseña para {{ t.username }}"
+             class="flex-1 min-w-0 h-10 rounded-lg bg-slate-900 border border-slate-700 px-3 text-sm focus:border-emerald-500 focus:outline-none">
+      <button class="h-10 px-3 rounded-lg bg-slate-700 text-sm font-semibold">Restablecer</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

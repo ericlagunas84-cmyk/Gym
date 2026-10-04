@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>FitStudio Express</title>
+  <title>{{ brand.name or 'FitStudio Express' }}</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="/static/js/alpine.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 antialiased min-h-screen">
+<body class="bg-slate-900 text-slate-100 antialiased min-h-screen" style="--brand: {{ brand.rgb }}; --on-brand: {{ brand.on }}">
 {% if not client %}
   <main class="max-w-md mx-auto px-6 pt-24 text-center">
     <img src="/static/icons/icon-192.png" alt="" class="w-20 h-20 rounded-2xl mx-auto mb-6">
@@ -21,20 +21,34 @@
     <p class="mt-3 text-slate-400">Abre el enlace personal que te envió tu entrenador para ver tu rutina de hoy.</p>
   </main>
 {% else %}
-  <div class="max-w-md mx-auto pb-28" x-data="fitApp()" x-cloak>
-    <header class="px-5 pt-6 pb-4">
-      <p class="text-sm text-emerald-400 font-semibold tracking-wide uppercase">{{ day_label }}</p>
+{% set input = "w-full h-12 rounded-xl bg-slate-900 border border-slate-700 px-3 focus-brand" %}
+  <div class="max-w-md mx-auto pb-32" x-data="fitApp()" x-cloak>
+    <header class="px-5 pt-5 pb-4">
+      {% if brand.logo or brand.name %}
+      <div class="flex items-center gap-2 mb-4">
+        {% if brand.logo %}<img src="{{ brand.logo }}" alt="" class="w-8 h-8 rounded-lg object-cover">{% endif %}
+        <span class="text-sm font-semibold text-slate-300">{{ brand.name }}</span>
+      </div>
+      {% endif %}
+      <p class="text-sm text-brand font-semibold tracking-wide uppercase">{{ day_label }}</p>
       <h1 class="text-2xl font-bold mt-1">Hola, {{ client.name.split(' ')[0] }} 👋</h1>
       <div class="mt-4 flex gap-1.5 overflow-x-auto -mx-5 px-5 pb-1">
         {% for key, label in days.items() %}
         <a href="/app?client_id={{ client.token }}&day={{ key }}"
-           class="shrink-0 px-3 py-1.5 rounded-full text-sm font-medium {{ 'bg-emerald-500 text-slate-900' if key == day else 'bg-slate-800 text-slate-300' }}">{{ label[:3] }}</a>
+           class="shrink-0 px-3 py-1.5 rounded-full text-sm font-medium {{ 'bg-brand' if key == day else 'bg-slate-800 text-slate-300' }}">{{ label[:3] }}</a>
         {% endfor %}
       </div>
     </header>
 
-    <!-- RUTINA -->
+    <!-- ================= RUTINA ================= -->
     <section x-show="tab === 'rutina'" class="px-5 space-y-5">
+      {% if message %}
+      <div class="rounded-2xl bg-brand-soft border border-brand p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-brand">Mensaje de tu entrenador · {{ message.date }}</p>
+        <p class="mt-1 text-slate-100 whitespace-pre-line">{{ message.text }}</p>
+      </div>
+      {% endif %}
+
       <template x-if="exercises.length === 0">
         <div class="rounded-2xl bg-slate-800 p-8 text-center text-slate-400">
           <p class="text-4xl mb-3">🧘</p>
@@ -49,35 +63,41 @@
             <span x-text="totalDone + ' / ' + totalSets + ' series'"></span>
           </div>
           <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
-            <div class="h-full bg-emerald-500 transition-all duration-500" :style="`width:${progress}%`"></div>
+            <div class="h-full fill-brand transition-all duration-500" :style="`width:${progress}%`"></div>
           </div>
         </div>
       </template>
 
       <template x-for="ex in exercises" :key="ex.id">
-        <article class="rounded-2xl bg-slate-800 overflow-hidden ring-1"
-                 :class="ex.done >= ex.sets ? 'ring-emerald-500/60' : 'ring-slate-700'">
+        <article class="rounded-2xl bg-slate-800 overflow-hidden border"
+                 :class="ex.done >= ex.sets ? 'border-brand' : 'border-slate-700'">
           <template x-if="ex.video">
             <video :src="ex.video" class="w-full aspect-video object-cover bg-black"
                    autoplay loop muted playsinline preload="metadata"></video>
           </template>
           <div class="p-4">
             <div class="flex items-start justify-between gap-3">
-              <div>
+              <div class="min-w-0">
                 <h2 class="text-lg font-bold leading-tight" x-text="ex.name"></h2>
-                <p class="text-sm text-slate-400" x-text="ex.sets + ' series × ' + ex.reps + ' reps'"></p>
+                <p class="text-sm text-slate-400" x-text="ex.sets + ' series × ' + ex.reps + ' reps' + (ex.rest ? ' · descanso ' + ex.rest + ' s' : '')"></p>
               </div>
               <div class="text-right shrink-0">
-                <p class="text-2xl font-bold tabular-nums" :class="ex.done >= ex.sets ? 'text-emerald-400' : ''">
+                <p class="text-2xl font-bold tabular-nums" :class="ex.done >= ex.sets && 'text-brand'">
                   <span x-text="ex.done" :class="ex.pop && 'pop inline-block'"></span><span class="text-slate-500 text-lg" x-text="'/' + ex.sets"></span>
                 </p>
                 <p class="text-xs text-slate-500 uppercase tracking-wide">series</p>
               </div>
             </div>
 
+            <p x-show="ex.note" class="mt-2 text-sm text-slate-300">💡 <span x-text="ex.note"></span></p>
+            <p x-show="ex.last" class="mt-2 text-sm text-slate-400">
+              La vez pasada: <span class="font-semibold text-slate-200" x-text="ex.last ? fmt(ex.last.w) + ' kg' : ''"></span>
+              <span x-text="ex.last ? '(' + ex.last.d + ')' : ''"></span>
+            </p>
+
             <div class="flex gap-1.5 mt-3">
               <template x-for="n in ex.sets" :key="n">
-                <span class="h-1.5 flex-1 rounded-full" :class="n <= ex.done ? 'bg-emerald-500' : 'bg-slate-700'"></span>
+                <span class="h-1.5 flex-1 rounded-full" :class="n <= ex.done ? 'fill-brand' : 'bg-slate-700'"></span>
               </template>
             </div>
 
@@ -86,16 +106,16 @@
                 <span class="sr-only">Peso levantado en kg</span>
                 <div class="relative">
                   <input type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" x-model="ex.weight"
-                         class="w-full h-14 rounded-xl bg-slate-900 border border-slate-700 pl-3 pr-9 text-lg font-semibold focus:border-emerald-500 focus:ring-0 focus:outline-none">
+                         class="w-full h-14 rounded-xl bg-slate-900 border border-slate-700 pl-3 pr-9 text-lg font-semibold focus-brand">
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">kg</span>
                 </div>
               </label>
               <button @click="completeSet(ex)" :disabled="ex.busy"
-                      class="flex-1 h-14 rounded-xl bg-emerald-500 text-slate-900 font-bold text-base active:scale-[.98] transition disabled:opacity-60">
+                      class="flex-1 h-14 rounded-xl bg-brand font-bold text-base active:scale-[.98] transition disabled:opacity-60">
                 <span x-text="ex.busy ? 'Guardando…' : 'Completar Serie ' + (ex.done + 1)"></span>
               </button>
             </div>
-            <p x-show="ex.done >= ex.sets" class="mt-4 h-14 rounded-xl bg-emerald-500/10 text-emerald-400 font-semibold flex items-center justify-center">
+            <p x-show="ex.done >= ex.sets" class="mt-4 h-14 rounded-xl bg-brand-soft text-brand font-semibold flex items-center justify-center">
               ✓ Ejercicio completado
             </p>
           </div>
@@ -106,15 +126,40 @@
          class="flex items-center justify-center h-14 rounded-xl bg-green-600 font-bold">Avisar a mi entrenador por WhatsApp</a>
     </section>
 
-    <!-- COMIDA -->
+    <!-- ================= COMIDA ================= -->
     <section x-show="tab === 'comida'" class="px-5 space-y-5">
-      <div class="rounded-2xl bg-slate-800 p-4 ring-1 ring-slate-700">
+      <div x-show="kcalGoal || proteinGoal" class="rounded-2xl bg-slate-800 border border-slate-700 p-4 space-y-3">
+        <template x-if="kcalGoal">
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span class="text-slate-400">Calorías de hoy</span>
+              <span><span class="font-bold tabular-nums" x-text="'≈ ' + n(kcalToday)"></span> <span class="text-slate-400" x-text="'de ' + n(kcalGoal) + ' kcal'"></span></span>
+            </div>
+            <div class="h-2.5 rounded-full bg-slate-900 overflow-hidden">
+              <div class="h-full transition-all duration-500" :class="kcalToday > kcalGoal * 1.1 ? 'bg-amber-400' : 'fill-brand'" :style="`width:${Math.min(100, kcalToday / kcalGoal * 100)}%`"></div>
+            </div>
+            <p class="mt-1 text-xs text-slate-500" x-text="kcalToday <= kcalGoal ? 'Te quedan ≈ ' + n(kcalGoal - kcalToday) + ' kcal' : 'Vas ≈ ' + n(kcalToday - kcalGoal) + ' kcal arriba de tu meta'"></p>
+          </div>
+        </template>
+        <template x-if="proteinGoal">
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span class="text-slate-400">Proteína de hoy</span>
+              <span><span class="font-bold tabular-nums" x-text="'≈ ' + proteinToday"></span> <span class="text-slate-400" x-text="'de ' + proteinGoal + ' g'"></span></span>
+            </div>
+            <div class="h-2.5 rounded-full bg-slate-900 overflow-hidden">
+              <div class="h-full fill-brand transition-all duration-500" :style="`width:${Math.min(100, proteinToday / proteinGoal * 100)}%`"></div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div class="rounded-2xl bg-slate-800 p-4 border border-slate-700">
         <h2 class="text-lg font-bold">Registrar comida</h2>
         <div class="grid grid-cols-4 gap-2 mt-3">
           {% for t in meal_types %}
-          <button type="button" @click="mealType = '{{ t }}'"
-                  class="py-2.5 rounded-xl text-sm font-medium"
-                  :class="mealType === '{{ t }}' ? 'bg-emerald-500 text-slate-900' : 'bg-slate-900 text-slate-300'">{{ t }}</button>
+          <button type="button" @click="mealType = '{{ t }}'" class="py-2.5 rounded-xl text-sm font-medium"
+                  :class="mealType === '{{ t }}' ? 'bg-brand' : 'bg-slate-900 text-slate-300'">{{ t }}</button>
           {% endfor %}
         </div>
 
@@ -128,71 +173,220 @@
         </button>
 
         <button type="button" @click="sendMeal()" :disabled="!photo || mealBusy"
-                class="mt-4 w-full h-14 rounded-xl bg-emerald-500 text-slate-900 font-bold disabled:opacity-40">
+                class="mt-4 w-full h-14 rounded-xl bg-brand font-bold disabled:opacity-40">
           <span x-text="mealBusy ? 'Analizando tu comida…' : 'Guardar ' + mealType"></span>
         </button>
 
-        <div x-show="lastMeal && lastMeal.kcal !== null" class="mt-4 rounded-xl bg-slate-900 p-4">
-          <p class="text-3xl font-bold text-emerald-400 tabular-nums">≈ <span x-text="lastMeal?.kcal"></span> <span class="text-base font-medium text-slate-400">kcal</span></p>
-          <p class="mt-1 text-sm text-slate-300" x-text="lastMeal?.desc"></p>
-          <p class="mt-2 text-sm text-slate-400" x-text="macros(lastMeal)"></p>
-          <p class="mt-2 text-xs text-slate-500">Estimación aproximada a partir de la foto.</p>
-        </div>
-
-        <a x-show="lastMeal && trainerPhone" :href="waMeal" target="_blank" rel="noopener"
-           class="mt-3 flex items-center justify-center h-14 rounded-xl bg-green-600 font-bold">Enviar reporte por WhatsApp</a>
+        <template x-if="lastMeal">
+          <div>
+            <div x-show="lastMeal.kcal !== null" class="mt-4 rounded-xl bg-slate-900 p-4">
+              <div class="flex items-start justify-between gap-3">
+                <p class="text-3xl font-bold text-brand tabular-nums">≈ <span x-text="n(lastMeal.kcal)"></span> <span class="text-base font-medium text-slate-400">kcal</span></p>
+                <button type="button" @click="openEdit(lastMeal)" class="text-sm underline text-slate-300 py-1">Corregir</button>
+              </div>
+              <p class="mt-1 text-sm text-slate-300" x-text="lastMeal.desc"></p>
+              <p class="mt-2 text-sm text-slate-400" x-text="macros(lastMeal)"></p>
+              <p class="mt-2 text-xs text-slate-500" x-text="lastMeal.edited ? 'Corregido por ti.' : 'Estimación aproximada a partir de la foto. Si algo no cuadra, corrígela.'"></p>
+            </div>
+            <a x-show="trainerPhone" :href="waMeal" target="_blank" rel="noopener"
+               class="mt-3 flex items-center justify-center h-14 rounded-xl bg-green-600 font-bold">Enviar reporte por WhatsApp</a>
+          </div>
+        </template>
       </div>
 
       <div x-show="meals.length > 0">
         <div class="flex items-baseline justify-between mb-2">
           <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wide">Hoy</h3>
-          <p x-show="kcalToday > 0" class="text-sm"><span class="text-lg font-bold text-emerald-400 tabular-nums" x-text="'≈ ' + kcalToday"></span> kcal</p>
+          <p x-show="kcalToday > 0 && !kcalGoal" class="text-sm"><span class="text-lg font-bold text-brand tabular-nums" x-text="'≈ ' + n(kcalToday)"></span> kcal</p>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <template x-for="m in meals" :key="m.url">
-            <figure class="rounded-xl overflow-hidden bg-slate-800">
-              <img :src="m.url" :alt="m.type" loading="lazy" class="w-full aspect-square object-cover">
-              <figcaption class="px-3 py-2 text-sm">
-                <span class="flex justify-between"><span x-text="m.type"></span><span class="text-slate-500" x-text="m.time"></span></span>
-                <span x-show="m.kcal !== null" class="block text-emerald-400 font-semibold tabular-nums" x-text="'≈ ' + m.kcal + ' kcal'"></span>
-              </figcaption>
-            </figure>
+        <div class="space-y-3">
+          <template x-for="m in meals" :key="m.id">
+            <div class="rounded-xl bg-slate-800 overflow-hidden flex">
+              <img :src="m.url" :alt="m.type" loading="lazy" class="w-24 h-24 object-cover shrink-0">
+              <div class="p-3 min-w-0 flex-1 text-sm">
+                <p class="flex justify-between gap-2"><span class="font-medium" x-text="m.type"></span><span class="text-slate-500" x-text="m.time"></span></p>
+                <p x-show="m.kcal !== null" class="text-brand font-semibold tabular-nums" x-text="'≈ ' + n(m.kcal) + ' kcal' + (m.edited ? ' · corregido' : '')"></p>
+                <p x-show="m.desc" class="text-slate-400 truncate" x-text="m.desc"></p>
+                <button type="button" @click="openEdit(m)" class="underline text-slate-300 mt-0.5" x-text="m.kcal === null ? 'Agregar calorías' : 'Corregir'"></button>
+                <p x-show="m.comment" class="mt-1.5 text-slate-200 bg-brand-soft rounded-lg px-2 py-1">💬 <span x-text="m.comment"></span></p>
+              </div>
+            </div>
           </template>
         </div>
       </div>
     </section>
 
+    <!-- ================= PROGRESO ================= -->
+    <section x-show="tab === 'progreso'" class="px-5 space-y-5">
+      <div class="rounded-2xl bg-slate-800 p-4 border border-slate-700">
+        <h2 class="text-lg font-bold">Registrar medidas</h2>
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          <label class="text-sm text-slate-400">Peso (kg)<input type="number" inputmode="decimal" step="0.1" x-model="bodyForm.weight_kg" class="{{ input }} mt-1 text-slate-100"></label>
+          <label class="text-sm text-slate-400">Cintura (cm)<input type="number" inputmode="decimal" step="0.5" x-model="bodyForm.waist_cm" class="{{ input }} mt-1 text-slate-100"></label>
+          <label class="text-sm text-slate-400">Cadera (cm)<input type="number" inputmode="decimal" step="0.5" x-model="bodyForm.hip_cm" class="{{ input }} mt-1 text-slate-100"></label>
+          <label class="text-sm text-slate-400">Pecho (cm)<input type="number" inputmode="decimal" step="0.5" x-model="bodyForm.chest_cm" class="{{ input }} mt-1 text-slate-100"></label>
+        </div>
+        <input type="file" accept="image/*" capture="user" class="hidden" x-ref="bodyCam" @change="bodyPhoto = $event.target.files[0] || null">
+        <button type="button" @click="$refs.bodyCam.click()" class="mt-3 w-full h-12 rounded-xl bg-slate-900 border border-slate-700 text-slate-300"
+                x-text="bodyPhoto ? '✓ Foto lista' : '📷 Agregar foto de progreso (opcional)'"></button>
+        <button type="button" @click="sendBody()" :disabled="bodyBusy" class="mt-3 w-full h-14 rounded-xl bg-brand font-bold disabled:opacity-40"
+                x-text="bodyBusy ? 'Guardando…' : 'Guardar registro'"></button>
+      </div>
+
+      <template x-if="weightSeries.length > 0">
+        <div class="rounded-2xl bg-slate-800 p-4 border border-slate-700">
+          <div class="flex items-end justify-between">
+            <div>
+              <p class="text-sm text-slate-400">Peso corporal</p>
+              <p class="text-3xl font-bold tabular-nums"><span x-text="fmt(weightSeries[weightSeries.length - 1])"></span> <span class="text-base font-medium text-slate-400">kg</span></p>
+            </div>
+            <p x-show="weightSeries.length > 1" class="text-sm font-semibold text-brand" x-text="delta(weightSeries) + ' kg desde el inicio'"></p>
+          </div>
+          <svg x-show="weightSeries.length > 1" viewBox="0 0 100 28" preserveAspectRatio="none" class="w-full h-16 mt-3" aria-hidden="true">
+            <polyline :points="spark(weightSeries)" fill="none" class="stroke-brand" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+          </svg>
+        </div>
+      </template>
+
+      <template x-if="photoPair">
+        <div class="rounded-2xl bg-slate-800 p-4 border border-slate-700">
+          <h3 class="font-bold mb-3">Antes y después</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <figure><img :src="photoPair[0].photo" alt="Antes" class="w-full aspect-[3/4] object-cover rounded-xl"><figcaption class="text-sm text-slate-400 mt-1" x-text="photoPair[0].date"></figcaption></figure>
+            <figure><img :src="photoPair[1].photo" alt="Después" class="w-full aspect-[3/4] object-cover rounded-xl"><figcaption class="text-sm text-slate-400 mt-1" x-text="photoPair[1].date"></figcaption></figure>
+          </div>
+        </div>
+      </template>
+
+      <div x-show="exProgress.length > 0">
+        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-2">Tus pesos por ejercicio</h3>
+        <div class="space-y-3">
+          <template x-for="p in exProgress" :key="p.name">
+            <div class="rounded-xl bg-slate-800 p-4">
+              <div class="flex items-baseline justify-between gap-3">
+                <p class="font-medium truncate" x-text="p.name"></p>
+                <p class="shrink-0 tabular-nums"><span class="text-slate-400" x-show="p.vals.length > 1" x-text="fmt(p.vals[0]) + ' → '"></span><span class="font-bold text-brand" x-text="fmt(p.vals[p.vals.length - 1]) + ' kg'"></span></p>
+              </div>
+              <svg x-show="p.vals.length > 1" viewBox="0 0 100 28" preserveAspectRatio="none" class="w-full h-10 mt-2" aria-hidden="true">
+                <polyline :points="spark(p.vals)" fill="none" class="stroke-brand" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+              </svg>
+              <p class="text-xs text-slate-500 mt-1" x-text="p.vals.length + (p.vals.length === 1 ? ' sesión registrada' : ' sesiones registradas')"></p>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <div x-show="body.length > 0">
+        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-2">Historial</h3>
+        <ul class="rounded-xl bg-slate-800 divide-y divide-slate-700">
+          <template x-for="b in body.slice(0, 10)" :key="b.id">
+            <li class="px-4 py-3 flex items-center gap-3 text-sm">
+              <template x-if="b.photo"><img :src="b.photo" alt="" class="w-10 h-10 rounded-lg object-cover shrink-0"></template>
+              <span class="text-slate-400 w-16 shrink-0" x-text="b.date"></span>
+              <span x-text="bodyLine(b)"></span>
+            </li>
+          </template>
+        </ul>
+      </div>
+
+      <p x-show="body.length === 0 && exProgress.length === 0" class="text-center text-slate-400 py-4">Aquí verás tu avance conforme registres tus entrenamientos y medidas.</p>
+    </section>
+
+    <!-- ================= editor de comida ================= -->
+    <template x-if="edit">
+      <div class="fixed inset-0 z-30 bg-black/70 flex items-end" @click.self="edit = null">
+        <div class="w-full max-w-md mx-auto bg-slate-800 rounded-t-3xl p-5 space-y-3" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom))">
+          <h3 class="text-lg font-bold">Corregir estimación</h3>
+          <label class="block text-sm text-slate-400">¿Qué comiste realmente?
+            <textarea x-model="edit.desc" rows="2" maxlength="200" placeholder="Ej. 2 tacos de asada con tortilla de maíz, sin queso"
+                      class="mt-1 w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-slate-100 focus-brand"></textarea>
+          </label>
+          <button x-show="aiEnabled" type="button" @click="reestimate()" :disabled="edit.busy || edit.desc.trim().length < 2"
+                  class="w-full h-12 rounded-xl bg-slate-700 font-semibold disabled:opacity-40"
+                  x-text="edit.busy === 'ai' ? 'Recalculando…' : '✨ Recalcular con esta descripción'"></button>
+          <div class="grid grid-cols-4 gap-2">
+            <label class="text-xs text-slate-400">kcal<input type="number" inputmode="numeric" min="0" x-model="edit.kcal" class="mt-1 w-full h-12 rounded-xl bg-slate-900 border border-slate-700 px-2 text-slate-100 text-base font-semibold focus-brand"></label>
+            <label class="text-xs text-slate-400">Proteína g<input type="number" inputmode="numeric" min="0" x-model="edit.p" class="mt-1 w-full h-12 rounded-xl bg-slate-900 border border-slate-700 px-2 text-slate-100 text-base focus-brand"></label>
+            <label class="text-xs text-slate-400">Carbos g<input type="number" inputmode="numeric" min="0" x-model="edit.c" class="mt-1 w-full h-12 rounded-xl bg-slate-900 border border-slate-700 px-2 text-slate-100 text-base focus-brand"></label>
+            <label class="text-xs text-slate-400">Grasa g<input type="number" inputmode="numeric" min="0" x-model="edit.f" class="mt-1 w-full h-12 rounded-xl bg-slate-900 border border-slate-700 px-2 text-slate-100 text-base focus-brand"></label>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <button type="button" @click="edit = null" class="h-12 rounded-xl bg-slate-900 font-semibold">Cancelar</button>
+            <button type="button" @click="saveEdit()" :disabled="edit.busy" class="h-12 rounded-xl bg-brand font-bold disabled:opacity-40"
+                    x-text="edit.busy === 'save' ? 'Guardando…' : 'Guardar'"></button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- descanso -->
+    <div x-show="rest.left > 0" x-transition class="fixed inset-x-0 bottom-14 z-20 px-4" style="margin-bottom: env(safe-area-inset-bottom)">
+      <div class="max-w-md mx-auto rounded-2xl bg-slate-800 border border-brand shadow-xl p-3 flex items-center gap-3">
+        <div class="flex-1">
+          <p class="text-sm text-slate-400">Descanso</p>
+          <p class="text-2xl font-bold tabular-nums" x-text="clock(rest.left)" aria-live="off"></p>
+          <div class="h-1.5 rounded-full bg-slate-900 overflow-hidden mt-1">
+            <div class="h-full fill-brand transition-all duration-1000 ease-linear" :style="`width:${rest.total ? rest.left / rest.total * 100 : 0}%`"></div>
+          </div>
+        </div>
+        <button type="button" @click="rest.left += 15; rest.total += 15" class="h-11 px-3 rounded-xl bg-slate-900 text-sm font-semibold">+15 s</button>
+        <button type="button" @click="stopRest()" class="h-11 px-3 rounded-xl bg-slate-900 text-sm font-semibold">Saltar</button>
+      </div>
+    </div>
+
     <!-- aviso -->
     <div x-show="toast" x-transition role="status"
-         class="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2.5 rounded-full text-sm font-medium shadow-lg"
-         :class="toastError ? 'bg-red-500 text-white' : 'bg-emerald-500 text-slate-900'" x-text="toast"></div>
+         class="fixed left-1/2 -translate-x-1/2 top-4 z-40 px-4 py-2.5 rounded-full text-sm font-medium shadow-lg whitespace-nowrap"
+         :class="toastError ? 'bg-red-500 text-white' : 'bg-brand'" x-text="toast"></div>
 
     <!-- pestañas -->
-    <nav class="fixed bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur border-t border-slate-800" style="padding-bottom: env(safe-area-inset-bottom)">
-      <div class="max-w-md mx-auto grid grid-cols-2">
-        <button @click="tab = 'rutina'" class="py-3.5 text-sm font-semibold" :class="tab === 'rutina' ? 'text-emerald-400' : 'text-slate-500'">🏋️ Rutina</button>
-        <button @click="tab = 'comida'" class="py-3.5 text-sm font-semibold" :class="tab === 'comida' ? 'text-emerald-400' : 'text-slate-500'">🥗 Comida</button>
+    <nav class="fixed bottom-0 inset-x-0 z-10 bg-slate-900/95 backdrop-blur border-t border-slate-800" style="padding-bottom: env(safe-area-inset-bottom)">
+      <div class="max-w-md mx-auto grid grid-cols-3">
+        <button @click="tab = 'rutina'" class="h-14 text-sm font-semibold" :class="tab === 'rutina' ? 'text-brand' : 'text-slate-500'">🏋️ Rutina</button>
+        <button @click="tab = 'comida'" class="h-14 text-sm font-semibold" :class="tab === 'comida' ? 'text-brand' : 'text-slate-500'">🥗 Comida</button>
+        <button @click="tab = 'progreso'" class="h-14 text-sm font-semibold" :class="tab === 'progreso' ? 'text-brand' : 'text-slate-500'">📈 Progreso</button>
       </div>
     </nav>
   </div>
 
   <script>
-    const DATA = {{ {"clientId": client.token, "clientName": client.name, "dayLabel": day_label, "exercises": exercises,
-                    "meals": meals, "mealType": meal_types[0], "trainerPhone": trainer_phone} | tojson }};
+    const DATA = {{ data | tojson }};
 
     function fitApp() {
       return {
         tab: 'rutina',
-        exercises: DATA.exercises.map(e => ({ ...e, weight: '', busy: false, pop: false, weights: [] })),
-        meals: DATA.meals, mealType: DATA.mealType, trainerPhone: DATA.trainerPhone,
-        photo: null, preview: null, mealBusy: false, lastMeal: null,
-        toast: '', toastError: false,
+        exercises: DATA.exercises.map(e => ({ ...e, weight: e.last ? String(e.last.w) : '', busy: false, pop: false, weights: [] })),
+        meals: DATA.meals, mealType: DATA.mealType, trainerPhone: DATA.trainerPhone, aiEnabled: DATA.aiEnabled,
+        kcalGoal: DATA.kcalGoal, proteinGoal: DATA.proteinGoal,
+        photo: null, preview: null, mealBusy: false, lastMeal: null, edit: null,
+        body: DATA.body, bodyForm: { weight_kg: '', waist_cm: '', hip_cm: '', chest_cm: '' }, bodyPhoto: null, bodyBusy: false,
+        rest: { left: 0, total: 0 }, toast: '', toastError: false, progressData: DATA.progress,
 
+        // ----- cálculos -----
         get totalSets() { return this.exercises.reduce((a, e) => a + e.sets, 0); },
         get totalDone() { return this.exercises.reduce((a, e) => a + e.done, 0); },
-        get kcalToday() { return this.meals.reduce((a, m) => a + (m.kcal || 0), 0); },
-        macros(m) { return m && m.kcal !== null ? `Proteína ${m.p} g · Carbohidratos ${m.c} g · Grasa ${m.f} g` : ''; },
         get progress() { return this.totalSets ? Math.round(this.totalDone / this.totalSets * 100) : 0; },
+        get kcalToday() { return this.meals.reduce((a, m) => a + (m.kcal || 0), 0); },
+        get proteinToday() { return this.meals.reduce((a, m) => a + (m.p || 0), 0); },
+        get exProgress() { return this.progressData.map(p => ({ name: p.name, vals: p.points.map(pt => pt.w).filter(w => w > 0) })).filter(p => p.vals.length); },
+        get weightSeries() { return this.body.filter(b => b.weight).map(b => b.weight).reverse(); },
+        get photoPair() { const ph = this.body.filter(b => b.photo); return ph.length > 1 ? [ph[ph.length - 1], ph[0]] : null; },
+        n(v) { return Number(v || 0).toLocaleString('es-MX'); },
+        fmt(v) { return Number(v).toLocaleString('es-MX', { maximumFractionDigits: 1 }); },
+        clock(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); },
+        delta(vals) { const d = vals[vals.length - 1] - vals[0]; return (d > 0 ? '+' : '') + this.fmt(d); },
+        macros(m) { return m && m.kcal !== null ? `Proteína ${m.p} g · Carbohidratos ${m.c} g · Grasa ${m.f} g` : ''; },
+        bodyLine(b) {
+          return [b.weight && this.fmt(b.weight) + ' kg', b.waist && 'cintura ' + this.fmt(b.waist), b.hip && 'cadera ' + this.fmt(b.hip),
+                  b.chest && 'pecho ' + this.fmt(b.chest)].filter(Boolean).join(' · ') || 'Foto de progreso';
+        },
+        spark(vals) {
+          if (vals.length < 2) return '';
+          const min = Math.min(...vals), range = (Math.max(...vals) - min) || 1;
+          return vals.map((v, i) => `${(i / (vals.length - 1) * 100).toFixed(1)},${(25 - (v - min) / range * 22).toFixed(1)}`).join(' ');
+        },
+
+        // ----- WhatsApp -----
         wa(text) { return `https://wa.me/${this.trainerPhone}?text=${encodeURIComponent(text)}`; },
         get waWorkout() {
           const lines = this.exercises.map(e => `• ${e.name}: ${e.done}/${e.sets} series` +
@@ -200,43 +394,27 @@
           return this.wa(`💪 ${DATA.clientName} — rutina del ${DATA.dayLabel} completada:\n${lines.join('\n')}`);
         },
         get waMeal() {
-          if (!this.lastMeal) return '#';
           const m = this.lastMeal;
-          const kcal = m.kcal !== null ? `\n≈ ${m.kcal} kcal — ${m.desc}\n${this.macros(m)}\nTotal de hoy: ≈ ${this.kcalToday} kcal` : '';
-          return this.wa(`🥗 ${DATA.clientName} — ${m.type} registrado (${m.time}).${kcal}\nFoto: ${location.origin}${m.url}`);
+          if (!m) return '#';
+          const goal = this.kcalGoal ? ` de ${this.n(this.kcalGoal)}` : '';
+          const kcal = m.kcal !== null ? `\n≈ ${this.n(m.kcal)} kcal — ${m.desc || ''}\n${this.macros(m)}\nTotal de hoy: ≈ ${this.n(this.kcalToday)}${goal} kcal` : '';
+          const url = m.url.startsWith('http') ? m.url : location.origin + m.url;
+          return this.wa(`🥗 ${DATA.clientName} — ${m.type} registrado (${m.time}).${kcal}\nFoto: ${url}`);
         },
+
+        // ----- utilidades -----
         notify(msg, error = false) {
           this.toast = msg; this.toastError = error;
           clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', 2600);
         },
-
-        async completeSet(ex) {
-          ex.busy = true;
-          try {
-            const weight = parseFloat(ex.weight) || 0;
-            const res = await fetch('/api/logs/workout', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ client_id: DATA.clientId, workout_id: ex.id, weight }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Error');
-            ex.done = data.set_number; ex.weights.push(weight);
-            ex.pop = true; setTimeout(() => ex.pop = false, 400);
-            if (navigator.vibrate) navigator.vibrate(40);
-            this.notify(data.done ? '¡Ejercicio completado! 🔥' : `Serie ${data.set_number} registrada`);
-          } catch (err) {
-            this.notify(typeof err.message === 'string' ? err.message : 'No se pudo guardar. Revisa tu conexión.', true);
-          } finally { ex.busy = false; }
+        async api(url, options) {
+          let res;
+          try { res = await fetch(url, options); } catch { throw new Error('Sin conexión. Intenta de nuevo.'); }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'No se pudo guardar. Revisa los datos.');
+          return data;
         },
-
-        pickPhoto(ev) {
-          const file = ev.target.files[0];
-          if (!file) return;
-          this.photo = file; this.lastMeal = null;
-          if (this.preview) URL.revokeObjectURL(this.preview);
-          this.preview = URL.createObjectURL(file);
-        },
-
+        json(body) { return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: DATA.clientId, ...body }) }; },
         // Reduce la foto a máx. 1600 px antes de subirla (ahorra datos móviles).
         async compress(file) {
           try {
@@ -245,30 +423,108 @@
             const c = document.createElement('canvas');
             c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
             c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-            const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
-            return blob || file;
+            return (await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82))) || file;
           } catch { return file; }
         },
 
+        // ----- rutina -----
+        async completeSet(ex) {
+          ex.busy = true;
+          try {
+            const weight = parseFloat(ex.weight) || 0;
+            const data = await this.api('/api/logs/workout', this.json({ workout_id: ex.id, weight }));
+            ex.done = data.set_number; ex.weights.push(weight);
+            this.trackWeight(ex.name, weight);
+            ex.pop = true; setTimeout(() => ex.pop = false, 400);
+            if (navigator.vibrate) navigator.vibrate(40);
+            this.notify(data.done ? '¡Ejercicio completado! 🔥' : `Serie ${data.set_number} registrada`);
+            if (!data.done && ex.rest > 0) this.startRest(ex.rest); else this.stopRest();
+          } catch (err) { this.notify(err.message, true); } finally { ex.busy = false; }
+        },
+        // Refleja la serie recién registrada en la pestaña Progreso sin recargar.
+        trackWeight(name, weight) {
+          if (!(weight > 0)) return;
+          let p = this.progressData.find(x => x.name === name);
+          if (!p) { p = { name, points: [] }; this.progressData.push(p); p = this.progressData[this.progressData.length - 1]; }
+          const last = p.points[p.points.length - 1];
+          if (last && last.d === DATA.today) last.w = Math.max(last.w, weight);
+          else p.points.push({ d: DATA.today, w: weight });
+        },
+        startRest(seconds) {
+          this.stopRest();
+          this.rest = { left: seconds, total: seconds };
+          this._rest = setInterval(() => {
+            this.rest.left = Math.max(0, this.rest.left - 1);
+            if (this.rest.left === 0) {
+              this.stopRest();
+              if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+              this.notify('¡A la siguiente serie! 💪');
+            }
+          }, 1000);
+        },
+        stopRest() { clearInterval(this._rest); this.rest = { left: 0, total: 0 }; },
+
+        // ----- comida -----
+        pickPhoto(ev) {
+          const file = ev.target.files[0];
+          if (!file) return;
+          this.photo = file; this.lastMeal = null;
+          if (this.preview) URL.revokeObjectURL(this.preview);
+          this.preview = URL.createObjectURL(file);
+        },
         async sendMeal() {
           this.mealBusy = true;
           try {
-            const blob = await this.compress(this.photo);
             const fd = new FormData();
             fd.append('client_id', DATA.clientId);
             fd.append('meal_type', this.mealType);
-            fd.append('photo', blob, 'comida.jpg');
-            const res = await fetch('/api/logs/meal', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Error');
-            const meal = { type: data.meal_type, url: data.photo_url, time: data.created_at.slice(11, 16),
-                           desc: data.description, kcal: data.calories, p: data.protein_g, c: data.carbs_g, f: data.fat_g };
-            this.meals.unshift(meal); this.lastMeal = meal;
+            fd.append('photo', await this.compress(this.photo), 'comida.jpg');
+            const meal = await this.api('/api/logs/meal', { method: 'POST', body: fd });
+            this.meals.unshift(meal); this.lastMeal = this.meals[0];
             this.photo = null; this.preview = null; this.$refs.camera.value = '';
             this.notify(`${meal.type} guardado ✓`);
-          } catch (err) {
-            this.notify(typeof err.message === 'string' ? err.message : 'No se pudo enviar la foto.', true);
-          } finally { this.mealBusy = false; }
+          } catch (err) { this.notify(err.message, true); } finally { this.mealBusy = false; }
+        },
+        openEdit(m) { this.edit = { id: m.id, desc: m.desc || '', kcal: m.kcal ?? '', p: m.p ?? 0, c: m.c ?? 0, f: m.f ?? 0, busy: false }; },
+        applyMeal(data) {
+          const m = this.meals.find(x => x.id === data.id);
+          if (m) Object.assign(m, data);
+        },
+        async reestimate() {
+          this.edit.busy = 'ai';
+          try {
+            const data = await this.api(`/api/logs/meal/${this.edit.id}/reestimate`, this.json({ note: this.edit.desc.trim() }));
+            this.applyMeal(data);
+            Object.assign(this.edit, { desc: data.desc || '', kcal: data.kcal, p: data.p, c: data.c, f: data.f });
+            this.notify('Estimación recalculada');
+          } catch (err) { this.notify(err.message, true); } finally { if (this.edit) this.edit.busy = false; }
+        },
+        async saveEdit() {
+          const e = this.edit, int = v => Math.max(0, Math.round(parseFloat(v) || 0));
+          if (e.kcal === '' || e.kcal === null) return this.notify('Escribe las calorías', true);
+          e.busy = 'save';
+          try {
+            const data = await this.api(`/api/logs/meal/${e.id}/update`, this.json({
+              description: e.desc.trim(), calories: int(e.kcal), protein_g: int(e.p), carbs_g: int(e.c), fat_g: int(e.f) }));
+            this.applyMeal(data); this.edit = null;
+            this.notify('Corrección guardada ✓');
+          } catch (err) { this.notify(err.message, true); if (this.edit) this.edit.busy = false; }
+        },
+
+        // ----- progreso corporal -----
+        async sendBody() {
+          this.bodyBusy = true;
+          try {
+            const fd = new FormData();
+            fd.append('client_id', DATA.clientId);
+            for (const [k, v] of Object.entries(this.bodyForm)) fd.append(k, v ?? '');
+            if (this.bodyPhoto) fd.append('photo', await this.compress(this.bodyPhoto), 'progreso.jpg');
+            const log = await this.api('/api/logs/body', { method: 'POST', body: fd });
+            this.body.unshift(log);
+            this.bodyForm = { weight_kg: '', waist_cm: '', hip_cm: '', chest_cm: '' };
+            this.bodyPhoto = null; this.$refs.bodyCam.value = '';
+            this.notify('Registro guardado ✓');
+          } catch (err) { this.notify(err.message, true); } finally { this.bodyBusy = false; }
         },
       };
     }

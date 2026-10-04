@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="robots" content="noindex">
+  <title>{% block title %}Panel del entrenador{% endblock %} · FitStudio Express</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="/static/js/alpine.min.js"></script>
+  <script>
+    // Botones de borrar: piden un segundo toque para confirmar.
+    function confirmTap(form) {
+      if (form.dataset.ok) return true;
+      form.dataset.ok = 1;
+      form.querySelector('button').textContent = '¿Seguro?';
+      setTimeout(() => { delete form.dataset.ok; }, 4000);
+      return false;
+    }
+  </script>
+</head>
+<body class="bg-slate-900 text-slate-100 antialiased min-h-screen">
+<div class="max-w-3xl mx-auto px-4 py-5 space-y-5">
+  {% if trainer %}
+  <header class="flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3 min-w-0">
+      <img src="{{ trainer.logo_url or '/static/icons/icon-192.png' }}" alt="" class="w-10 h-10 rounded-xl object-cover">
+      <div class="min-w-0">
+        <p class="font-bold leading-tight truncate">{{ trainer.brand_name or 'FitStudio Express' }}</p>
+        <p class="text-sm text-slate-400 truncate">{{ trainer.name or trainer.username }}</p>
+      </div>
+    </div>
+    <form method="post" action="/logout"><button class="text-sm text-slate-400 px-2 py-2">Salir</button></form>
+  </header>
+  <nav class="flex flex-wrap gap-1 p-1 rounded-xl bg-slate-800 text-sm font-semibold">
+    {% set path = request.url.path %}
+    {% for href, label in [('/admin', 'Clientes'), ('/admin/biblioteca', 'Biblioteca'), ('/admin/resumen', 'Resumen'), ('/admin/ajustes', 'Ajustes')] + ([('/admin/entrenadores', 'Entrenadores')] if trainer.is_owner else []) %}
+    <a href="{{ href }}" class="flex-1 text-center px-3 py-2.5 rounded-lg {{ 'bg-emerald-500 text-slate-900' if path == href else 'text-slate-400' }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  {% if weak %}
+  <p class="rounded-xl bg-amber-500/10 text-amber-300 text-sm px-4 py-3">
+    Estás usando la contraseña inicial. <a href="/admin/ajustes" class="underline font-semibold">Cámbiala en Ajustes</a> antes de compartir la app.
+  </p>
+  {% endif %}
+  {% if msg %}
+  <p class="rounded-xl bg-emerald-500/10 text-emerald-300 text-sm px-4 py-3" role="status">{{ msg }}</p>
+  {% endif %}
+  {% endif %}
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

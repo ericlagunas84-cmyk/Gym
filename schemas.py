@@ -1,6 +1,4 @@
 """Validaciones Pydantic para los endpoints API."""
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 
 
@@ -17,14 +15,15 @@ class WorkoutLogOut(BaseModel):
     done: bool
 
 
-class MealLogOut(BaseModel):
-    ok: bool = True
-    id: int
-    meal_type: str
-    photo_url: str
-    created_at: datetime
-    description: str | None = None
-    calories: int | None = None
-    protein_g: int | None = None
-    carbs_g: int | None = None
-    fat_g: int | None = None
+class MealUpdateIn(BaseModel):
+    client_id: str
+    description: str = Field(default="", max_length=200)
+    calories: int = Field(ge=0, le=5000)
+    protein_g: int = Field(default=0, ge=0, le=500)
+    carbs_g: int = Field(default=0, ge=0, le=800)
+    fat_g: int = Field(default=0, ge=0, le=500)
+
+
+class MealReestimateIn(BaseModel):
+    client_id: str
+    note: str = Field(min_length=2, max_length=200)
